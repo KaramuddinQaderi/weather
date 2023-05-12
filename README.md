@@ -1,6 +1,6 @@
 # weather
 
-A new Flutter project.
+A new Flutter application project.
 
 ## Getting Started
 
