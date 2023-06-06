@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:weather/components/loading_widget.dart';
+import 'package:weather/models/weather_models.dart';
 import 'package:weather/services/location.dart';
-import 'package:http/http.dart' as http;
+import 'package:weather/services/networking.dart';
+import 'package:weather/utilities/constants.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,18 +14,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  bool isDataLoaded = false;
+  double? latitude, longitude;
   GeolocatorPlatform geolocatorPlatform = GeolocatorPlatform.instance;
   LocationPermission? permission;
+  WeatherModel? weatherModel;
 
   @override
   void initState() {
     super.initState();
     getPermission();
-  }
-  
-  void getData() async {
-   http.Response response = await http.get(Uri.parse("{"coord":{"lon":10.99,"lat":44.34},"weather":[{"id":804,"main":"Clouds","description":"overcast clouds","icon":"04d"}],"base":"stations","main":{"temp":284.41,"feels_like":284.02,"temp_min":283.12,"temp_max":287.03,"pressure":1014,"humidity":93,"sea_level":1014,"grnd_level":928},"visibility":10000,"wind":{"speed":0.84,"deg":68,"gust":1.75},"clouds":{"all":93},"dt":1683909166,"sys":{"type":2,"id":2044440,"country":"IT","sunrise":1683863580,"sunset":1683916314},"timezone":7200,"id":3163858,"name":"Zocca","cod":200}"););
-   print(response);
   }
 
   void getPermission() async {
@@ -49,17 +50,207 @@ class _HomePageState extends State<HomePage> {
   void getLocation() async {
     Location location = Location();
     await location.gerCurrentLocation();
-    print(location.latitude);
-    print(location.longitude);
+    latitude = location.latitude;
+    longitude = location.longitude;
+    NetworkHelper networkHelper = NetworkHelper(
+      "https://api.openweathermap.org/data/2.5/weather?units=metric&lat=$latitude&lon=$longitude&appid=$apiKey",
+    );
+    var weatherData = await networkHelper.getData();
+    weatherModel = WeatherModel(
+      location: weatherData['name'] + ', ' + weatherData['sys']['country'],
+      description: weatherData['weather'][0]['description'],
+      temperature: weatherData['main']['temp'],
+      feelslike: weatherData['main']['feels_like'],
+      humidity: weatherData['main']['humidity'],
+      wind: weatherData['wind']['speed'],
+      icon: weatherData['weather'][0]['icon'],
+    );
+    setState(() {
+      isDataLoaded = true;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    getData();
-    return Scaffold(
-      body: SafeArea(
-        child: Center(),
-      ),
-    );
+    if (!isDataLoaded) {
+      return LoadingWidget();
+    } else {
+      return Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    flex: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: TextField(
+                        decoration: kTextFieldDecoration,
+                        onSubmitted: (String typedName) {
+                          print(typedName);
+                        },
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          primary: Colors.white12,
+                          elevation: 1,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () {},
+                        child: Container(
+                          height: 50,
+                          child: Row(
+                            children: <Widget>[
+                              Text(
+                                'My Location',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 8,
+                              ),
+                              Icon(
+                                Icons.gps_fixed,
+                                color: Colors.white60,
+                              )
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                children: <Widget>[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Icon(
+                        Icons.location_city_rounded,
+                      ),
+                      SizedBox(
+                        width: 12,
+                      ),
+                      Text(
+                        weatherModel!.location!,
+                        style: TextStyle(fontSize: 20),
+                      ),
+                    ],
+                  ),
+                  SizedBox(
+                    height: 25,
+                  ),
+                  Icon(
+                    Icons.wb_sunny_outlined,
+                    size: 280,
+                  ),
+                  SizedBox(
+                    height: 40,
+                  ),
+                  Text(
+                    '${weatherModel!.temperature!.round()}°',
+                    style: TextStyle(
+                      fontSize: 80,
+                    ),
+                  ),
+                  Text(weatherModel!.description!.toUpperCase()),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Container(
+                    height: 90,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: <Widget>[
+                            Text(
+                              '${weatherModel!.feelslike!.round()}°',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'FEELS LIKE',
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.white60),
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(15),
+                          child: VerticalDivider(
+                            thickness: 1,
+                          ),
+                        ),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: <Widget>[
+                            Text(
+                              '${weatherModel!.humidity!.round()}%',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'HUMIDITY',
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.white60),
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(15),
+                          child: VerticalDivider(
+                            thickness: 1,
+                          ),
+                        ),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: <Widget>[
+                            Text(
+                              '${weatherModel!.wind!.round()}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'WIND',
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.white60),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
 }
