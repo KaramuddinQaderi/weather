@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:weather/components/loading_widget.dart';
 import 'package:weather/models/weather_models.dart';
 import 'package:weather/services/location.dart';
 import 'package:weather/services/networking.dart';
 import 'package:weather/utilities/constants.dart';
+import 'package:weather/utilities/weather-icons.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,6 +21,7 @@ class _HomePageState extends State<HomePage> {
   GeolocatorPlatform geolocatorPlatform = GeolocatorPlatform.instance;
   LocationPermission? permission;
   WeatherModel? weatherModel;
+  int code = 0;
 
   @override
   void initState() {
@@ -56,6 +59,7 @@ class _HomePageState extends State<HomePage> {
       "https://api.openweathermap.org/data/2.5/weather?units=metric&lat=$latitude&lon=$longitude&appid=$apiKey",
     );
     var weatherData = await networkHelper.getData();
+    code = weatherData['weather'][0]['id'];
     weatherModel = WeatherModel(
       location: weatherData['name'] + ', ' + weatherData['sys']['country'],
       description: weatherData['weather'][0]['description'],
@@ -63,7 +67,8 @@ class _HomePageState extends State<HomePage> {
       feelslike: weatherData['main']['feels_like'],
       humidity: weatherData['main']['humidity'],
       wind: weatherData['wind']['speed'],
-      icon: weatherData['weather'][0]['icon'],
+      icon:
+          'images/weather-icons/${getIconPrefix(code)}${kWeatherIcons[code.toString()]!['icon']}.svg',
     );
     setState(() {
       isDataLoaded = true;
@@ -151,9 +156,10 @@ class _HomePageState extends State<HomePage> {
                   SizedBox(
                     height: 25,
                   ),
-                  Icon(
-                    Icons.wb_sunny_outlined,
-                    size: 280,
+                  SvgPicture.asset(
+                    weatherModel!.icon!,
+                    height: 280,
+                    color: Colors.white,
                   ),
                   SizedBox(
                     height: 40,
