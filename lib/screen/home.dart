@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:weather/components/error.dart';
 import 'package:weather/components/loading_widget.dart';
 import 'package:weather/models/weather_models.dart';
 import 'package:weather/services/location.dart';
 import 'package:weather/services/networking.dart';
+import 'package:weather/services/weather.dart';
 import 'package:weather/utilities/constants.dart';
 import 'package:weather/utilities/weather-icons.dart';
 
@@ -17,11 +19,15 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   bool isDataLoaded = false;
+  bool isErroe = false;
   double? latitude, longitude;
   GeolocatorPlatform geolocatorPlatform = GeolocatorPlatform.instance;
   LocationPermission? permission;
   WeatherModel? weatherModel;
   int code = 0;
+  Weather weather = Weather();
+  var weatherData;
+  String? title, message;
 
   @override
   void initState() {
@@ -40,25 +46,33 @@ class _HomePageState extends State<HomePage> {
               'Permission permannently denied, please provide permission to the app from device setting');
         } else {
           print('Permission granted');
-          getLocation();
+          updateUI();
         }
       } else {
         print('User denied the request');
       }
     } else {
-      getLocation();
+      updateUI();
     }
   }
 
-  void getLocation() async {
-    Location location = Location();
-    await location.gerCurrentLocation();
-    latitude = location.latitude;
-    longitude = location.longitude;
-    NetworkHelper networkHelper = NetworkHelper(
-      "https://api.openweathermap.org/data/2.5/weather?units=metric&lat=$latitude&lon=$longitude&appid=$apiKey",
-    );
-    var weatherData = await networkHelper.getData();
+  void updateUI({String? cityName}) async {
+    weatherData = null;
+    if (cityName == null || cityName == '') {
+      if (!await geolocatorPlatform.isLocationServiceEnabled()) {
+        setState(() {
+          isErroe = true;
+          isDataLoaded = true;
+          title = 'Location is turned off!';
+          message = 'Please enable the your location*';
+          return;
+        });
+      }
+      weatherData = await weather.getLocationWeather();
+    } else {
+      weatherData = await weather.getCityWeather(cityName);
+    }
+
     code = weatherData['weather'][0]['id'];
     weatherModel = WeatherModel(
       location: weatherData['name'] + ', ' + weatherData['sys']['country'],
@@ -81,6 +95,7 @@ class _HomePageState extends State<HomePage> {
       return LoadingWidget();
     } else {
       return Scaffold(
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: Column(
             children: <Widget>[
@@ -93,7 +108,8 @@ class _HomePageState extends State<HomePage> {
                       child: TextField(
                         decoration: kTextFieldDecoration,
                         onSubmitted: (String typedName) {
-                          print(typedName);
+                          isDataLoaded = false;
+                          updateUI(cityName: typedName);
                         },
                       ),
                     ),
@@ -110,7 +126,12 @@ class _HomePageState extends State<HomePage> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        onPressed: () {},
+                        onPressed: () {
+                          setState(() {
+                            isDataLoaded = false;
+                            getPermission();
+                          });
+                        },
                         child: Container(
                           height: 50,
                           child: Row(
@@ -136,43 +157,48 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-              Column(
-                children: <Widget>[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Icon(
-                        Icons.location_city_rounded,
+              isErroe
+                  ? ErrorMessage(title: title!, message: message!)
+                  : Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              Icon(
+                                Icons.location_city_rounded,
+                              ),
+                              SizedBox(
+                                width: 12,
+                              ),
+                              Text(
+                                weatherModel!.location!,
+                                style: TextStyle(fontSize: 20),
+                              ),
+                            ],
+                          ),
+                          SizedBox(
+                            height: 25,
+                          ),
+                          SvgPicture.asset(
+                            weatherModel!.icon!,
+                            height: 280,
+                            color: Colors.white,
+                          ),
+                          SizedBox(
+                            height: 40,
+                          ),
+                          Text(
+                            '${weatherModel!.temperature!.round()}°',
+                            style: TextStyle(
+                              fontSize: 80,
+                            ),
+                          ),
+                          Text(weatherModel!.description!.toUpperCase()),
+                        ],
                       ),
-                      SizedBox(
-                        width: 12,
-                      ),
-                      Text(
-                        weatherModel!.location!,
-                        style: TextStyle(fontSize: 20),
-                      ),
-                    ],
-                  ),
-                  SizedBox(
-                    height: 25,
-                  ),
-                  SvgPicture.asset(
-                    weatherModel!.icon!,
-                    height: 280,
-                    color: Colors.white,
-                  ),
-                  SizedBox(
-                    height: 40,
-                  ),
-                  Text(
-                    '${weatherModel!.temperature!.round()}°',
-                    style: TextStyle(
-                      fontSize: 80,
                     ),
-                  ),
-                  Text(weatherModel!.description!.toUpperCase()),
-                ],
-              ),
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Card(
@@ -189,7 +215,7 @@ class _HomePageState extends State<HomePage> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: <Widget>[
                             Text(
-                              '${weatherModel!.feelslike!.round()}°',
+                              '${weatherModel != null ? weatherModel!.feelslike!.round() : 0}°',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -212,7 +238,7 @@ class _HomePageState extends State<HomePage> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: <Widget>[
                             Text(
-                              '${weatherModel!.humidity!.round()}%',
+                              '${weatherModel != null ? weatherModel!.humidity!.round() : 0}%',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -235,7 +261,7 @@ class _HomePageState extends State<HomePage> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: <Widget>[
                             Text(
-                              '${weatherModel!.wind!.round()}',
+                              '${weatherModel != null ? weatherModel!.wind!.round() : 0}',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
