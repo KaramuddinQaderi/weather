@@ -120,7 +120,7 @@ class _HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.only(right: 12),
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          primary: Colors.white12,
+                          backgroundColor: Colors.white12,
                           elevation: 1,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -140,6 +140,7 @@ class _HomePageState extends State<HomePage> {
                                 'My Location',
                                 style: TextStyle(
                                   fontSize: 16,
+                                  color: Colors.white60,
                                 ),
                               ),
                               SizedBox(
@@ -224,7 +225,9 @@ class _HomePageState extends State<HomePage> {
                             Text(
                               'FEELS LIKE',
                               style: TextStyle(
-                                  fontSize: 16, color: Colors.white60),
+                                fontSize: 16,
+                                color: Colors.white60,
+                              ),
                             ),
                           ],
                         ),
@@ -247,7 +250,9 @@ class _HomePageState extends State<HomePage> {
                             Text(
                               'HUMIDITY',
                               style: TextStyle(
-                                  fontSize: 16, color: Colors.white60),
+                                fontSize: 16,
+                                color: Colors.white60,
+                              ),
                             ),
                           ],
                         ),
@@ -270,7 +275,9 @@ class _HomePageState extends State<HomePage> {
                             Text(
                               'WIND',
                               style: TextStyle(
-                                  fontSize: 16, color: Colors.white60),
+                                fontSize: 16,
+                                color: Colors.white60,
+                              ),
                             ),
                           ],
                         ),
